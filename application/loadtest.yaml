@@ -86,7 +86,7 @@ spec:
     spec:
       containers:
       - name: load-generator
-        image: loadimpact/k6
+        image: shipyardrun/k6:v0.35.0
         command: ["k6", "run", "--out", "statsd", "/etc/config/load_test.js"]
         env:
           - name: K6_STATSD_ADDR

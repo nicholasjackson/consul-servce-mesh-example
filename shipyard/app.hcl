@@ -7,6 +7,7 @@ k8s_config "app" {
     "../application/consul-defaults.yaml",
     "../application/api-dashboard.yaml",
     "../application/loadtest-dashboard.yaml",
+    "../application/metrics.yaml",
     "../application/api.yaml",
     "../application/payments.yaml",
     "../application/loadtest.yaml",
