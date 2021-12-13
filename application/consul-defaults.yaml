@@ -1,0 +1,103 @@
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceDefaults
+metadata:
+  name: api
+spec:
+  protocol: http
+
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceDefaults
+metadata:
+  name: payments
+spec:
+  protocol: http
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: payments
+spec:
+  destination:
+    name: payments
+  sources:
+    - name: api
+      action: allow
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: api
+spec:
+  destination:
+    name: api
+  sources:
+    - name: ingress-gateway
+      action: allow
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: ingress-gateway
+spec:
+  destination:
+    name: ingress-gateway
+  sources:
+    - name: '*'
+      action: allow
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: IngressGateway
+metadata:
+  name: ingress-gateway
+spec:
+  listeners:
+    - port: 18080
+      protocol: http
+      services:
+        - name: api
+          hosts: ["*"]
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceRouter
+metadata:
+  name: payments
+spec:
+  routes:
+    - match:
+        http:
+          pathPrefix: /
+      destination:
+        numRetries: 5
+        retryOnConnectFailure: true
+        retryOnStatusCodes:
+          - 500
+          - 502
+          - 503
+          - 504
+
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceRouter
+metadata:
+  name: api
+spec:
+  routes:
+    - match:
+        http:
+          pathPrefix: /
+      destination:
+        service: api
+        retryOnConnectFailure: true
+        numRetries: 10
+        retryOnStatusCodes:
+          - 502
+          - 503
+          - 504

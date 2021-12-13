@@ -1,0 +1,83 @@
+---
+# Service to expose API for scraping
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments
+  labels: # configure prom scrapting for this service
+    app: metrics
+spec:
+  selector:
+    group: payments
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: metrics # prom scraping port
+      protocol: TCP
+      port: 20200
+      targetPort: 20200
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments
+automountServiceAccountToken: true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments
+  labels:
+    app: payments
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payments
+  template:
+    metadata:
+      labels:
+        group: payments
+        app: payments
+        metrics: enabled
+      annotations:
+        consul.hashicorp.com/connect-inject: 'true'
+        consul.hashicorp.com/transparent-proxy: 'true'
+        consul.hashicorp.com/transparent-proxy-overwrite-probes: 'true'
+        consul.hashicorp.com/service-meta-version: v1
+        consul.hashicorp.com/connect-service: payments  # This flag must be set or the hijacked flagger pod will not start
+    spec:
+      serviceAccountName: payments
+      containers:
+        - name: payments
+          image: nicholasjackson/fake-service:v0.22.8
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "NAME"
+              value: "PAYMENTS V1"
+            - name: "LISTEN_ADDR"
+              value: "127.0.0.1:8080"
+            - name: "HTTP_CLIENT_KEEP_ALIVES"
+              value: "false"
+            - name: "TIMING_50_PERCENTILE"
+              value: "10ms"
+            - name: "TRACING_ZIPKIN"
+              value: "http://tempo.monitoring.svc:9411"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
